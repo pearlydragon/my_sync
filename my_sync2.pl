@@ -361,17 +361,14 @@ sub create_shop_db {
           my $mtime = `date -d "$temp_date" +%s`;
           $fname = `echo "$fname" | awk '{print \$1}'`;
           $end_string = `echo "$end_string" | awk '{print \$1}'`;
-          #Надо ограничить выборку файлов...
-          if (index ("$end_string", 'Contence.b') >= 0 || index ($end_string, '_etk/cen') >= 0 || index ($end_string, '_etk/css') >= 0 || index ($end_string, 'ETK/Help') >= 0){
-              my $sql_str="insert into files values(?,?,?,?,?)";
-              $sql_str =~ s/([\r\n])//g;
-              $end_string =~ s/([\r\n])//g;
-              $end_string =~ s/\///;
-              $fname =~ s/([\r\n])//g;
-              $lsdir =~ s/([\r\n])//g;
-              $mtime =~ s/([\r\n])//g;
-              $dbs->do($sql_str, {}, $end_string,$fname,$lsdir,$mtime,"0") or print "fail";
-          }
+	  my $sql_str="insert into files values(?,?,?,?,?)";
+	  $sql_str =~ s/([\r\n])//g;
+	  $end_string =~ s/([\r\n])//g;
+	  $end_string =~ s/\///;
+	  $fname =~ s/([\r\n])//g;
+	  $lsdir =~ s/([\r\n])//g;
+	  $mtime =~ s/([\r\n])//g;
+	  $dbs->do($sql_str, {}, $end_string,$fname,$lsdir,$mtime,"0") or print "fail";
     }
     date_up();
     print "$year/$mon/$mday $hour:$min:$sec : Create shop base complete...\n";
