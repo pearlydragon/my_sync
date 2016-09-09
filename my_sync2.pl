@@ -1,4 +1,4 @@
-#!/usr/bin/perl -w
+﻿#!/usr/bin/perl -w
 use POSIX;
 use strict;
 use Path::Class;
@@ -10,9 +10,8 @@ use File::Copy;
 use File::Basename;
 
 my $version="2.6.3";
+my $config_file = 'my_sync.conf';
 
-my $db_path="/home/defender/.my_sync/files.db";
-my $dbs_path="/home/defender/.my_sync/shop.db";
 my $db;
 my $dbs;
 my $st;
@@ -20,14 +19,15 @@ my $st_rem;
 my $sts;
 my ($sec,$min,$hour,$mday,$mon,$year,$wday,$yday,$isdst) ="";
 
-my $home_dir=dir("/home/defender/.my_sync/");
-my $u_dir=dir("/windows/u/Domino8/mail/PLAN Lin/my_sync/");
-my $stop_file='/windows/u/Domino8/mail/PLAN Lin/my_sync/stop/my_sync';
-my $sync_list='/windows/u/Domino8/mail/PLAN Lin/my_sync/sync_list';
-
-my $errlog_end='/windows/u/Domino8/PROJECT.update/my_sync.err';
-my $log_end='/windows/u/Domino8/PROJECT.update/my_sync.log';
-my $fileslog_end='/windows/u/Domino8/PROJECT.update/my_sync_files.log';
+my $home_dir=dir("`cat $config_file | grep home | awk -F = {print $2}`");
+my $end_dir=dir("`cat $config_file | grep log | awk -F = {print $2}`");
+my $stop_file="$home_dir".'stop/my_sync';
+my $sync_list="$home_dir".'sync_list';
+my $db_path="$home_dir".'files.db';
+my $dbs_path="$home_dir".'shop.db';
+my $errlog_end="$end_dir".'my_sync.err';
+my $log_end="$end_dir".'my_sync.log';
+my $fileslog_end="$end_dir".'my_sync_files.log';
 
 my $errlog=$home_dir->file("my_sync.err");
 open (my $errlog_file, '>>', "$errlog") or print "fail";
@@ -36,17 +36,21 @@ open (my $log_file, '>>', "$log") or print $errlog_file "fail";
 my $fileslog=$home_dir->file("my_sync_files.log");
 open (my $fileslog_file, '>>', "$fileslog") or print $errlog_file "fail";
 
-my $config_file = "/windows/u/Domino8/mail/PLAN Lin/my_sync/my_sync.conf";
+my $config_file = "$homedir".'my_sync.conf';
 
-my $folder_dest='/home/defender/.csync/PROJECT.shop/';
-my $folder_origin='/windows/u/Domino8/PROJECT.shop/';
-my $folder_shop='Domino8\PROJECT';
+my $folder_dest=`cat $config_file | grep destination | awk -F = {print $2}`;
+my $folder_origin=`cat $config_file | grep origin | awk -F = {print $2}`;
+my $folder_shop=`cat $config_file | grep smb_fold | awk -F = {print $2}`;
 
 my @num='';
 
-my $user='semkin';
-my $pass='kbkbv';
+my $user=`cat $config_file | grep login | awk -F = {print $2}`;
+my $pass=`cat $config_file | grep pass | awk -F = {print $2}`;
 my $var1=0;
+
+my $includes=`cat $config_file | grep include | awk -F = {print $2}`;
+my $excludes=`cat $config_file | grep exclude | awk -F = {print $2}`;
+my $excludes_shop=`cat $config_file | grep exclude_shop | awk -F = {print $2}`;
 
 if (! -e $db_path)
 {
@@ -164,7 +168,7 @@ foreach my $num (@num)
 }
 
 #Uncomment for tests:
-#@num_norm='192.168.35.252';
+#@num_norm='1.1.1.1';
 chdir "$folder_origin";
 
 my $i=0;
@@ -276,7 +280,7 @@ sub update_db {
     print $log_file "$year/$mon/$mday $hour:$min:$sec : Update DB starting...\n";
     chdir "$folder_origin";
     $db=DBI->connect("DBI:SQLite:dbname=$db_path","","", {RaiseError => 1});
-    my @files=`find * -type f 2>/dev/null | egrep -i 'Contence.|_etk/cen|_etk/css|ETK/Help' | grep -v -i 'DataBase'`;
+    my @files=`find * -type f 2>/dev/null | egrep -i $includes | grep -v -i $excludes`;
     foreach my $fname (@files)
     {
       $fname =~ s/([\r\n])//g;
@@ -317,7 +321,7 @@ sub create_db {
     $db=DBI->connect("DBI:SQLite:dbname=$db_path","","", {RaiseError => 1});
     $db->do("drop table if exists files");
     $db->do("create table files(fullpath text, name text, dir text, date int, mark int)");
-    my @files=`find * -type f 2>/dev/null | egrep -i 'Contence.|_etk/cen|_etk/css|ETK/Help|ETK/version.txt' | grep -v -i 'DataBase' | sort`;
+    my @files=`find * -type f 2>/dev/null | egrep -i $includes | grep -v -i $excludes | sort`;
     foreach my $fname (@files)
     {
         $fname =~ s/([\r\n])//g;
@@ -334,7 +338,7 @@ sub create_db {
 sub create_shop_db {
   foreach my $num (@num_norm){
     print "$year/$mon/$mday $hour:$min:$sec : Get file tree of shop start...\n";
-    my @file_list=`smbclient //$num/base -U $user $pass -c "cd Domino8\\PROJECT; recurse; ls; exit;" | grep -v 'blocks available' | egrep '\\<[\\_a-ZA-Z1-9]' | sed -n '/\\ D\\ /!p' | sed 's/^[ \\t]*//' | sed 's/\\\\Domino8\\\\PROJECT//g' | egrep -v 'Кто-то|товаров.html'`;
+    my @file_list=`smbclient //$num/base -U $user $pass -c "cd $folder_shop; recurse; ls; exit;" | grep -v 'blocks available' | egrep '\\<[\\_a-ZA-Z1-9]' | sed -n '/\\ D\\ /!p' | sed 's/^[ \\t]*//' | sed 's/$folder_shop//g' | egrep -v $excudes_shop`;
     date_up();
     print "$year/$mon/$mday $hour:$min:$sec : Get file tree of shop complete...\n";
     print "$year/$mon/$mday $hour:$min:$sec : Create shop base start...\n";
